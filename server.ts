@@ -29,14 +29,12 @@ function getClientIp(req: Request): string {
   }
 }
 
-//TESTAR FUNCAO EM CASA
-
 app.post('/dtv/registerRTSPProxy', async (req, res) => {
   try {
     const response = await axios.get('https://api64.ipify.org/?format=json');
 
     const realip = response.data.ip;
-    console.log("realip: ", realip);
+    console.log("Real IP: ", realip);
 
     let ip = getClientIp(req);
     if (ip && ipaddr.isValid(ip)) {

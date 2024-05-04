@@ -34,12 +34,11 @@ function getClientIp(req) {
         return req.socket.remoteAddress || '';
     }
 }
-//TESTAR FUNCAO EM CASA
 app.post('/dtv/registerRTSPProxy', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const response = yield axios_1.default.get('https://api64.ipify.org/?format=json');
         const realip = response.data.ip;
-        console.log("realip: ", realip);
+        console.log("Real IP: ", realip);
         let ip = getClientIp(req);
         if (ip && ipaddr.isValid(ip)) {
             ip = ipaddr.process(ip).toString();
