@@ -14,36 +14,54 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const axios_1 = __importDefault(require("axios"));
+const os_1 = __importDefault(require("os"));
+const ipaddr_js_1 = __importDefault(require("ipaddr.js"));
 const app = (0, express_1.default)();
 const PORT = 8080;
-const requestIp = require('request-ip');
-const ipaddr = require('ipaddr.js');
 let registeredProxies = [];
 app.set('trust proxy', true);
 app.use(express_1.default.json());
 function getClientIp(req) {
     const xForwardedForHeader = req.headers['x-forwarded-for'];
+    let publicIp = '';
+    let localIp = '';
     if (typeof xForwardedForHeader === 'string') {
         const ips = xForwardedForHeader.split(', ');
-        return ips[0];
+        publicIp = ips[0];
     }
     else if (Array.isArray(xForwardedForHeader)) {
-        return xForwardedForHeader[0];
+        publicIp = xForwardedForHeader[0];
     }
     else {
-        return req.socket.remoteAddress || '';
+        publicIp = req.socket.remoteAddress || '';
     }
+    const networkInterfaces = os_1.default.networkInterfaces();
+    for (const [, interfaces] of Object.entries(networkInterfaces)) {
+        if (interfaces) {
+            for (const iface of interfaces) {
+                if (!iface.internal && iface.family === 'IPv4') {
+                    localIp = iface.address;
+                    break;
+                }
+            }
+        }
+        if (localIp)
+            break;
+    }
+    return { publicIp, localIp };
 }
 app.post('/dtv/registerRTSPProxy', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const response = yield axios_1.default.get('https://api64.ipify.org/?format=json');
         const realip = response.data.ip;
         console.log("Real IP: ", realip);
-        let ip = getClientIp(req);
-        if (ip && ipaddr.isValid(ip)) {
-            ip = ipaddr.process(ip).toString();
+        const { publicIp, localIp } = getClientIp(req);
+        let ip = publicIp;
+        if (ip && ipaddr_js_1.default.isValid(ip)) {
+            ip = ipaddr_js_1.default.process(ip).toString();
         }
-        console.log("ip: ", ip);
+        console.log("Public IP: ", ip);
+        console.log("Local IP: ", localIp);
         registeredProxies.push({ realip, ip });
         res.status(200).send('RTSP Registered successfully.');
     }

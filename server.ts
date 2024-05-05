@@ -1,10 +1,10 @@
 import express, { Request, Response } from 'express';
 import axios from 'axios';
+import os from 'os';
+import ipaddr from 'ipaddr.js';
 
 const app = express();
 const PORT = 8080;
-const requestIp = require('request-ip');
-const ipaddr = require('ipaddr.js');
 
 interface RTSPProxy {
   realip: string;
@@ -17,16 +17,33 @@ app.set('trust proxy', true);
 
 app.use(express.json());
 
-function getClientIp(req: Request): string {
+function getClientIp(req: Request): { publicIp: string, localIp: string } {
   const xForwardedForHeader = req.headers['x-forwarded-for'];
+  let publicIp = '';
+  let localIp = '';
   if (typeof xForwardedForHeader === 'string') {
     const ips = xForwardedForHeader.split(', ');
-    return ips[0];
+    publicIp = ips[0];
   } else if (Array.isArray(xForwardedForHeader)) {
-    return xForwardedForHeader[0];
+    publicIp = xForwardedForHeader[0];
   } else {
-    return req.socket.remoteAddress || '';
+    publicIp = req.socket.remoteAddress || '';
   }
+
+  const networkInterfaces = os.networkInterfaces();
+  for (const [, interfaces] of Object.entries(networkInterfaces)) {
+    if (interfaces) {
+      for (const iface of interfaces) {
+        if (!iface.internal && iface.family === 'IPv4') {
+          localIp = iface.address;
+          break;
+        }
+      }
+    }
+    if (localIp) break;
+  }  
+
+  return { publicIp, localIp };
 }
 
 app.post('/dtv/registerRTSPProxy', async (req, res) => {
@@ -36,11 +53,14 @@ app.post('/dtv/registerRTSPProxy', async (req, res) => {
     const realip = response.data.ip;
     console.log("Real IP: ", realip);
 
-    let ip = getClientIp(req);
+    const { publicIp, localIp } = getClientIp(req);
+
+    let ip = publicIp;
     if (ip && ipaddr.isValid(ip)) {
       ip = ipaddr.process(ip).toString();
     }
-    console.log("ip: ", ip);
+    console.log("Public IP: ", ip);
+    console.log("Local IP: ", localIp);
 
     registeredProxies.push({ realip, ip });
 
