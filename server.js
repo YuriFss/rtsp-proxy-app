@@ -62,7 +62,7 @@ app.post('/dtv/registerRTSPProxy', (req, res) => __awaiter(void 0, void 0, void 
         }
         console.log("Public IP: ", ip);
         console.log("Local IP: ", localIp);
-        registeredProxies.push({ realip, ip });
+        registeredProxies.push({ localIp, ip });
         res.status(200).send('RTSP Registered successfully.');
     }
     catch (error) {
@@ -70,11 +70,29 @@ app.post('/dtv/registerRTSPProxy', (req, res) => __awaiter(void 0, void 0, void 
         res.status(500).send('Internal Server Error');
     }
 }));
+function getClientIpReq(req) {
+    const xForwardedForHeader = req.headers['x-forwarded-for'];
+    if (typeof xForwardedForHeader === 'string') {
+        const ips = xForwardedForHeader.split(', ');
+        return ips[0];
+    }
+    else if (Array.isArray(xForwardedForHeader)) {
+        return xForwardedForHeader[0];
+    }
+    else {
+        return req.socket.remoteAddress || '';
+    }
+}
 app.get('/dtv/obtainRTSPProxy', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const response = yield axios_1.default.get('https://api64.ipify.org/?format=json');
-        const publicIp = response.data.ip;
-        const proxy = registeredProxies.find((p) => p.realip === publicIp);
+        const response = getClientIpReq(req);
+        const ip = response;
+        let publicIp = ip;
+        if (publicIp && ipaddr_js_1.default.isValid(publicIp)) {
+            publicIp = ipaddr_js_1.default.process(publicIp).toString();
+        }
+        console.log("Public IP: ", publicIp);
+        const proxy = registeredProxies.find((p) => p.ip === publicIp);
         if (proxy) {
             res.status(200).json({ ip: proxy.ip });
         }
