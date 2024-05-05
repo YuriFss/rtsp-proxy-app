@@ -13,7 +13,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const axios_1 = __importDefault(require("axios"));
 const os_1 = __importDefault(require("os"));
 const ipaddr_js_1 = __importDefault(require("ipaddr.js"));
 const app = (0, express_1.default)();
@@ -52,9 +51,6 @@ function getClientIp(req) {
 }
 app.post('/dtv/registerRTSPProxy', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const response = yield axios_1.default.get('https://api64.ipify.org/?format=json');
-        const realip = response.data.ip;
-        console.log("Real IP: ", realip);
         const { publicIp, localIp } = getClientIp(req);
         let ip = publicIp;
         if (ip && ipaddr_js_1.default.isValid(ip)) {
